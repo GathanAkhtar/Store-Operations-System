@@ -57,6 +57,18 @@ public class LoginSystem {
             return true;
         }
     }
+
+    // Masukkan method ini ke dalam class LoginSystem.java
+    public boolean validateLogin(String inputId, String inputPass) {
+    User user = users.get(inputId);
+    
+    // Cek apakah user ada DAN password cocok
+        if (user != null && user.getPassword().equals(inputPass)) {
+            currentUser = user; // Set user yang aktif
+            return true;
+        }
+        return false;
+    }
     
     // Method untuk LOGOUT
     public void logout() {
