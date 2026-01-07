@@ -4,7 +4,5 @@ public class Test {
     }    
 
     static void unusedMethod() {
-        System.out.println("TEST");
-        System.out.println("Test2");
     }
 }
