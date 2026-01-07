@@ -1,10 +1,10 @@
 package Project;
 
 public class Employee extends User {
-    private String role;     // Part-time / Full-time
-    private String outletId; // Lokasi kerja (misal: C60)
+    protected String role;     // Part-time / Full-time
+    protected String outletId; // Lokasi kerja (misal: C60)
 
-    public Employee(int userID, int password, String name, String role, String outletId) {
+    public Employee(String userID, String password, String name, String role, String outletId) {
         // "super" memanggil constructor dari class User (Parent)
         super(userID, password, name);
         this.role = role;

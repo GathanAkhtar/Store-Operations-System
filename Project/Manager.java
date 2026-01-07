@@ -1,9 +1,9 @@
 package Project;
 
 public class Manager extends User {
-    private String role;
+    protected String role;
 
-    public Manager(int userID, int password, String name, String role){
+    public Manager(String userID, String password, String name, String role){
         super(userID, password, name);
         this.role = "Manager";
     }
