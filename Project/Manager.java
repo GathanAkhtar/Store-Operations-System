@@ -4,9 +4,15 @@ public class Manager extends User {
     
     public Manager(String userID, String password, String name, String role){
         super(userID, password, name);
-        // Hardcode the role to "Manager"
-        this.name = name; // slight fix on super usage context if needed, but super handles it.
+        // Hardcode role jadi "Manager"
+        this.name = name; 
     }
     
-    // Manager specific methods can be added here
+    // --- TAMBAHAN BARU: Format penyimpanan CSV ---
+    @Override
+    public String toString() {
+        // Format: ID,Pass,Name,Role,Outlet
+        // Manager kita anggap outletnya "HeadOffice" atau kosong
+        return userID + "," + password + "," + name + ",Manager,HeadOffice";
+    }
 }
