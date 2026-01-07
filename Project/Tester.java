@@ -11,13 +11,11 @@ public class Tester {
         LoginSystem loginSystem = new LoginSystem();
         InventorySystem inventorySystem = new InventorySystem();
         AttendanceLog attendanceLog = new AttendanceLog();
+        SalesSystem salesSystem = new SalesSystem(inventorySystem); // NEW! Pass inventory
 
         // --- 2. LOOP UTAMA PROGRAM ---
         while (true) {
             
-            // ==========================================
-            // STATE 1: BELUM LOGIN (MENU UTAMA)
-            // ==========================================
             if (!loginSystem.isLoggedIn()) {
                 String[] options = {"Login", "Exit"};
                 int choice = JOptionPane.showOptionDialog(
@@ -29,11 +27,10 @@ public class Tester {
                     null, options, options[0]
                 );
 
-                if (choice == 0) { // PILIH LOGIN
+                if (choice == 0) {
                     String id = JOptionPane.showInputDialog("Enter User ID:");
                     if (id == null) continue;
 
-                    // Menggunakan Password Field agar bintang-bintang (***)
                     JPasswordField pf = new JPasswordField();
                     int okCxl = JOptionPane.showConfirmDialog(null, pf, "Enter Password:", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
                     String pass = "";
@@ -48,22 +45,18 @@ public class Tester {
                     } else {
                         JOptionPane.showMessageDialog(null, "Login Failed! Invalid ID or Password.", "Error", JOptionPane.ERROR_MESSAGE);
                     }
-                } else { // PILIH EXIT
+                } else {
                     JOptionPane.showMessageDialog(null, "Goodbye! Shutting down...");
                     System.exit(0);
                 }
 
             } else {
-                // ==========================================
-                // STATE 2: SUDAH LOGIN (DASHBOARD)
-                // ==========================================
                 User currentUser = loginSystem.getCurrentUser();
 
-                // ------------------------------------------
-                // A. MANAGER DASHBOARD
-                // ------------------------------------------
+                // === MANAGER DASHBOARD ===
                 if (loginSystem.isManager()) {
-                    String[] mgrOptions = {"Register Employee", "View Stock", "Add New Product", "View History Log", "Logout"};
+                    String[] mgrOptions = {"Register Employee", "View Stock", "Add New Product", 
+                                           "View History Log", "View Sales History", "Logout"}; // Added Sales History
                     
                     int mgrChoice = JOptionPane.showOptionDialog(
                         null, 
@@ -74,8 +67,8 @@ public class Tester {
                         null, mgrOptions, mgrOptions[0]
                     );
 
-                    // 1. Register Employee
                     if (mgrChoice == 0) {
+                        // Register Employee
                         String newId = JOptionPane.showInputDialog("Enter New Employee ID:");
                         if (newId != null && !newId.isEmpty()) {
                             if (loginSystem.getUsers().containsKey(newId)) {
@@ -94,12 +87,12 @@ public class Tester {
                             }
                         }
                     }
-                    // 2. View Stock (Tabel)
                     else if (mgrChoice == 1) {
+                        // View Stock
                         showProductTable(inventorySystem);
                     }
-                    // 3. Add New Product
                     else if (mgrChoice == 2) {
+                        // Add New Product
                         String pid = JOptionPane.showInputDialog("Product ID (e.g., W001):");
                         String pname = JOptionPane.showInputDialog("Product Name:");
                         String pprice = JOptionPane.showInputDialog("Price (RM):");
@@ -114,8 +107,8 @@ public class Tester {
                             JOptionPane.showMessageDialog(null, "Invalid Input! Price/Qty must be numbers.");
                         }
                     }
-                    // 4. View History Log (BACA FILE TRANSAKSI)
                     else if (mgrChoice == 3) {
+                        // View Transaction History
                         String logs = inventorySystem.readTransactionLogs();
                         
                         JTextArea textArea = new JTextArea(logs);
@@ -127,17 +120,29 @@ public class Tester {
                         
                         JOptionPane.showMessageDialog(null, scroll, "Transaction Logs", JOptionPane.INFORMATION_MESSAGE);
                     }
-                    // 5. Logout
+                    else if (mgrChoice == 4) {
+                        // View Sales History (NEW!)
+                        String salesLogs = salesSystem.readSalesHistory();
+                        
+                        JTextArea textArea = new JTextArea(salesLogs);
+                        textArea.setEditable(false);
+                        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+                        
+                        JScrollPane scroll = new JScrollPane(textArea);
+                        scroll.setPreferredSize(new Dimension(700, 400));
+                        
+                        JOptionPane.showMessageDialog(null, scroll, "Sales History", JOptionPane.INFORMATION_MESSAGE);
+                    }
                     else {
+                        // Logout
                         loginSystem.logout();
                     }
 
-                // ------------------------------------------
-                // B. EMPLOYEE DASHBOARD
-                // ------------------------------------------
+                // === EMPLOYEE DASHBOARD ===
                 } else {
                     Employee emp = (Employee) currentUser;
-                    String[] empOptions = {"Attendance", "Stock Operations", "Stock Count (Audit)", "Logout"};
+                    String[] empOptions = {"Attendance", "Stock Operations", "Stock Count (Audit)", 
+                                          "Record Sale", "Logout"}; // Added Record Sale
                     
                     int empChoice = JOptionPane.showOptionDialog(
                         null, 
@@ -148,24 +153,22 @@ public class Tester {
                         null, empOptions, empOptions[0]
                     );
 
-                    // 1. Attendance
                     if (empChoice == 0) {
-                        String status = attendanceLog.checkStatus(emp);
+                        // Attendance
                         String[] attOpts = {"Clock In", "Clock Out", "Check Status", "Back"};
                         int attChoice = JOptionPane.showOptionDialog(null, "Attendance Menu", "Time Clock", 0, 1, null, attOpts, attOpts[0]);
                         
                         if (attChoice == 0) JOptionPane.showMessageDialog(null, attendanceLog.clockIn(emp));
                         else if (attChoice == 1) JOptionPane.showMessageDialog(null, attendanceLog.clockOut(emp));
-                        else if (attChoice == 2) JOptionPane.showMessageDialog(null, status);
+                        else if (attChoice == 2) JOptionPane.showMessageDialog(null, attendanceLog.checkStatus(emp));
                     }
                     
-                    // 2. Stock Operations (In/Out)
                     else if (empChoice == 1) {
+                        // Stock Operations
                         String[] stockTypes = {"Stock In (Receive)", "Stock Out (Sale/Transfer)", "Back"};
                         int typeChoice = JOptionPane.showOptionDialog(null, "Choose Action:", "Stock Ops", 0, 1, null, stockTypes, stockTypes[0]);
                         
                         if (typeChoice == 0 || typeChoice == 1) {
-                            // Tampilkan daftar produk dulu biar gampang
                             showProductSimpleList(inventorySystem);
                             
                             String pid = JOptionPane.showInputDialog("Enter Product ID:");
@@ -173,10 +176,10 @@ public class Tester {
                             
                             try {
                                 int qty = Integer.parseInt(qtyStr);
-                                if (typeChoice == 0) { // IN
+                                if (typeChoice == 0) {
                                     String res = inventorySystem.stockIn(pid, qty, emp.getName());
                                     JOptionPane.showMessageDialog(null, res);
-                                } else { // OUT
+                                } else {
                                     String reason = JOptionPane.showInputDialog("Reason for Stock Out:");
                                     String res = inventorySystem.stockOut(pid, qty, emp.getName(), reason);
                                     JOptionPane.showMessageDialog(null, res);
@@ -187,15 +190,13 @@ public class Tester {
                         }
                     }
 
-                    // 3. Stock Count (Audit Morning/Night)
                     else if (empChoice == 2) {
+                        // Stock Count
                         String[] sessions = {"Morning Count", "Night Count", "Back"};
                         int sessChoice = JOptionPane.showOptionDialog(null, "Select Audit Session:", "Audit", 0, 1, null, sessions, sessions[0]);
 
                         if (sessChoice == 0 || sessChoice == 1) {
                             String session = (sessChoice == 0) ? "MORNING" : "NIGHT";
-                            
-                            // Tampilkan daftar produk
                             showProductSimpleList(inventorySystem);
 
                             String pid = JOptionPane.showInputDialog("Enter Product ID to Audit:");
@@ -212,8 +213,13 @@ public class Tester {
                         }
                     }
 
-                    // 4. Logout
+                    else if (empChoice == 3) {
+                        // ========== RECORD SALE (NEW!) ==========
+                        recordSale(salesSystem, inventorySystem, emp);
+                    }
+
                     else {
+                        // Logout
                         loginSystem.logout();
                     }
                 }
@@ -221,7 +227,84 @@ public class Tester {
         }
     }
 
-    // --- HELPER METHOD: MENAMPILKAN TABEL GUI ---
+    // === HELPER: RECORD SALE ===
+    private static void recordSale(SalesSystem salesSystem, InventorySystem inventory, Employee employee) {
+        // Step 1: Customer name
+        String customerName = JOptionPane.showInputDialog("Enter Customer Name:");
+        if (customerName == null || customerName.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Sale cancelled: Customer name required.");
+            return;
+        }
+        
+        // Step 2: Create transaction
+        SalesTransaction transaction = salesSystem.createNewTransaction(customerName, employee);
+        
+        // Step 3: Add items (loop)
+        boolean addingItems = true;
+        while (addingItems) {
+            // Show product list
+            showProductSimpleList(inventory);
+            
+            String productID = JOptionPane.showInputDialog("Enter Product ID:");
+            if (productID == null || productID.trim().isEmpty()) break;
+            
+            String qtyStr = JOptionPane.showInputDialog("Enter Quantity:");
+            if (qtyStr == null) break;
+            
+            try {
+                int quantity = Integer.parseInt(qtyStr);
+                
+                String result = salesSystem.addItemToTransaction(transaction, productID, quantity);
+                JOptionPane.showMessageDialog(null, result);
+                
+                if (result.startsWith("ERROR")) {
+                    continue; // Retry
+                }
+                
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null, "Invalid number format!", "Error", JOptionPane.ERROR_MESSAGE);
+                continue;
+            }
+            
+            int moreItems = JOptionPane.showConfirmDialog(null, "Add more items?", "Continue", JOptionPane.YES_NO_OPTION);
+            if (moreItems != JOptionPane.YES_OPTION) {
+                addingItems = false;
+            }
+        }
+        
+        if (transaction.getItems().isEmpty()) {
+            JOptionPane.showMessageDialog(null, "Sale cancelled: No items added.");
+            return;
+        }
+        
+        // Step 4: Payment method
+        String[] paymentMethods = {"Cash", "Credit Card", "Debit Card", "E-wallet"};
+        int paymentChoice = JOptionPane.showOptionDialog(null, "Select Payment Method:", "Payment", 
+            JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, paymentMethods, paymentMethods[0]);
+        
+        if (paymentChoice == -1) {
+            JOptionPane.showMessageDialog(null, "Sale cancelled: Payment method required.");
+            return;
+        }
+        
+        String paymentMethod = paymentMethods[paymentChoice];
+        
+        // Step 5: Confirm
+        String summary = salesSystem.getTransactionSummary(transaction);
+        summary += "\n\nPayment Method: " + paymentMethod;
+        summary += "\n\nConfirm transaction?";
+        
+        int confirm = JOptionPane.showConfirmDialog(null, summary, "Confirm Sale", JOptionPane.YES_NO_OPTION);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            String result = salesSystem.finalizeTransaction(transaction, paymentMethod, employee.getName());
+            JOptionPane.showMessageDialog(null, result, "Transaction Complete", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(null, "Sale cancelled.");
+        }
+    }
+
+    // === HELPER: TABLE VIEW ===
     private static void showProductTable(InventorySystem inv) {
         ArrayList<Product> list = inv.getAllProducts();
         String[] columns = {"ID", "Name", "Price (RM)", "Qty"};
@@ -239,12 +322,13 @@ public class Tester {
         JOptionPane.showMessageDialog(null, new JScrollPane(table), "Current Inventory", JOptionPane.PLAIN_MESSAGE);
     }
 
-    // --- HELPER METHOD: MENAMPILKAN LIST SIMPLE (TEXT) ---
+    // === HELPER: SIMPLE LIST ===
     private static void showProductSimpleList(InventorySystem inv) {
         ArrayList<Product> list = inv.getAllProducts();
         StringBuilder sb = new StringBuilder("=== PRODUCT REFERENCE ===\n\n");
         for (Product p : list) {
-            sb.append(String.format("[%s] %s - System Qty: %d\n", p.getProductID(), p.getName(), p.getQuantity()));
+            sb.append(String.format("[%s] %s - RM%.2f (Stock: %d)\n", 
+                p.getProductID(), p.getName(), p.getPrice(), p.getQuantity()));
         }
         JTextArea textArea = new JTextArea(sb.toString());
         textArea.setEditable(false);
