@@ -25,10 +25,10 @@ public class LoginSystem {
     
     // Method untuk LOGIN
     public boolean login() {
-        System.out.print("\nMasukkan Employee ID: ");
+        System.out.print("\nEnter Employee ID: ");
         String empId = scanner.nextLine();
         
-        System.out.print("Masukkan Password: ");
+        System.out.print("Enter Password: ");
         String password = scanner.nextLine();
         
         // Cari user berdasarkan Employee ID
@@ -37,14 +37,14 @@ public class LoginSystem {
         // Cek apakah user ada dan password benar
         if (user == null || !user.getPassword().equals(password)) {
             // Login gagal
-            System.out.println("\n*** Login Gagal ***");
-            System.out.println("Employee ID atau Password salah. Silakan coba lagi.");
+            System.out.println("\n*** Login Failed ***");
+            System.out.println("Employee ID or Password is incorrect. Please try again.");
             return false;
         } else {
             // Login berhasil
             currentUser = user;
-            System.out.println("\n*** Login Berhasil ***");
-            System.out.println("Selamat datang, " + currentUser.getName());
+            System.out.println("\n*** Login Successful ***");
+            System.out.println("Welcome, " + currentUser.getName());
             
             // Tampilkan role user
             if (currentUser instanceof Manager) {
@@ -62,7 +62,7 @@ public class LoginSystem {
     public void logout() {
         if (currentUser != null) {
             System.out.println("\n*** Logout ***");
-            System.out.println("Sampai jumpa, " + currentUser.getName());
+            System.out.println("Goodbye, " + currentUser.getName());
             currentUser = null;  // Hapus user yang login
         }
     }
