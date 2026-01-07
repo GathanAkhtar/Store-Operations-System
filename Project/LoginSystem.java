@@ -1,28 +1,23 @@
 package Project;
 
-import java.io.*; // Import Wajib untuk File
+import java.io.*;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.Set;
 
 public class LoginSystem {
-    // Database in memory (HashMap)
     private HashMap<String, User> users;
     private User currentUser;
-    
-    // --- TAMBAHAN BARU: Lokasi File CSV ---
-    // File ini akan dicari di folder utama (di luar folder Project)
     private final String FILE_NAME = "users.csv";
 
     public LoginSystem() {
         users = new HashMap<>();
-        loadUsersFromFile(); // <--- BACA FILE SAAT PROGRAM NYALA
+        loadUsersFromFile();
     }
 
-    // Method to validate login credentials
     public boolean validateLogin(String inputId, String inputPass) {
         User user = users.get(inputId);
-        
-        // Check if user exists AND password matches
         if (user != null && user.getPassword().equals(inputPass)) {
             currentUser = user;
             return true;
@@ -30,59 +25,46 @@ public class LoginSystem {
         return false;
     }
 
-    // Method to add a new user to the database
     public void addUser(User newUser) {
         if (!users.containsKey(newUser.getUserID())) {
             users.put(newUser.getUserID(), newUser);
-            saveUsersToFile(); // <--- SIMPAN KE FILE SETELAH NAMBAH USER
+            saveUsersToFile();
         } else {
-            System.out.println("Error: User ID already exists in database.");
+            System.out.println("Error: User ID already exists.");
         }
     }
 
-    public void logout() {
-        currentUser = null;
+    // --- FITUR BARU: AMBIL DAFTAR CABANG AKTIF ---
+    public String[] getActiveOutlets() {
+        Set<String> outletSet = new HashSet<>();
+        for (User u : users.values()) {
+            if (u instanceof Employee) {
+                outletSet.add(((Employee) u).getOutletId());
+            }
+        }
+        return outletSet.toArray(new String[0]);
     }
 
-    public boolean isLoggedIn() {
-        return currentUser != null;
-    }
-
-    public boolean isManager() {
-        return currentUser instanceof Manager;
-    }
-
-    public User getCurrentUser() {
-        return currentUser;
-    }
-    
-    public HashMap<String, User> getUsers() {
-        return users;
-    }
-
-    // ========================================================
-    // === TAMBAHAN BARU: FILE INPUT / OUTPUT (BACA TULIS) ===
-    // ========================================================
+    public void logout() { currentUser = null; }
+    public boolean isLoggedIn() { return currentUser != null; }
+    public boolean isManager() { return currentUser instanceof Manager; }
+    public User getCurrentUser() { return currentUser; }
+    public HashMap<String, User> getUsers() { return users; }
 
     private void loadUsersFromFile() {
         File file = new File(FILE_NAME);
-        
-        // Jika file belum ada, buat Manager Default
         if (!file.exists()) {
-            System.out.println("Database users.csv tidak ditemukan. Membuat data default...");
+            System.out.println("users.csv not found. Creating default Manager...");
             Manager defaultManager = new Manager("UM2025", "1234", "Ucup Manager", "Manager");
             users.put("UM2025", defaultManager);
-            saveUsersToFile(); // Buat filenya sekarang
+            saveUsersToFile();
             return;
         }
 
-        // Jika file ada, baca isinya baris per baris
         try (Scanner scanner = new Scanner(file)) {
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
-                // Format CSV: ID,Pass,Name,Role,Outlet
                 String[] data = line.split(",");
-                
                 if (data.length >= 5) {
                     String id = data[0];
                     String pass = data[1];
@@ -90,7 +72,6 @@ public class LoginSystem {
                     String role = data[3];
                     String outlet = data[4];
 
-                    // Bedakan mana Manager mana Employee
                     if (role.equalsIgnoreCase("Manager")) {
                         users.put(id, new Manager(id, pass, name, role));
                     } else {
@@ -99,19 +80,18 @@ public class LoginSystem {
                 }
             }
         } catch (FileNotFoundException e) {
-            System.out.println("Gagal membaca file: " + e.getMessage());
+            System.out.println("Error reading user file: " + e.getMessage());
         }
     }
 
     private void saveUsersToFile() {
-        // 'false' artinya kita timpa isi file lama dengan data terbaru dari HashMap
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(FILE_NAME, false))) {
             for (User u : users.values()) {
-                writer.write(u.toString()); // Panggil toString() dari Employee/Manager
+                writer.write(u.toString());
                 writer.newLine();
             }
         } catch (IOException e) {
-            System.out.println("Gagal menyimpan file: " + e.getMessage());
+            System.out.println("Error saving user file: " + e.getMessage());
         }
     }
 }
