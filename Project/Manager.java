@@ -8,7 +8,9 @@ public class Manager extends User {
         this.role = "Manager";
     }
 
-    void registerEmployee(){
-
+// Method untuk mendaftarkan karyawan baru 
+    public void registerEmployee(String id, String pass, String name, String role, String outlet) {
+        // Logika pendaftaran akan ditulis di sini
+        System.out.println("Employee " + name + " registered successfully!");
     }
 }
