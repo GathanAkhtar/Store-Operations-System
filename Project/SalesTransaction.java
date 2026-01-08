@@ -1,62 +1,61 @@
 package Project;
 
 import java.util.ArrayList;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 public class SalesTransaction {
     private String transactionID;
     private String customerName;
     private Employee employee;
-    private ArrayList<LineItem> items;
+    private ArrayList<CartItem> items; // List barang belanjaan
     private double totalPrice;
-    private LocalDateTime timestamp;
-    
-    // --- TAMBAHAN BARU ---
-    private String paymentMethod; 
 
     public SalesTransaction(String customerName, Employee employee) {
-        this.transactionID = "TX-" + System.currentTimeMillis();
+        this.transactionID = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         this.customerName = customerName;
         this.employee = employee;
         this.items = new ArrayList<>();
         this.totalPrice = 0.0;
-        this.timestamp = LocalDateTime.now();
-        this.paymentMethod = "Cash"; // Default
     }
 
-    public void addItem(Product product, int qty) {
-        items.add(new LineItem(product, qty));
-        totalPrice += (product.getPrice() * qty);
-    }
+    // === METHOD PENTING (YANG TADI ERROR) ===
     
-    // --- Setter & Getter Baru ---
-    public void setPaymentMethod(String method) { this.paymentMethod = method; }
-    public String getPaymentMethod() { return paymentMethod; }
+    // 1. Menambahkan barang ke keranjang
+    public void addItem(Product product, int quantity) {
+        double subTotal = product.getPrice() * quantity;
+        CartItem item = new CartItem(product, quantity, subTotal);
+        items.add(item);
+        totalPrice += subTotal;
+    }
 
-    public ArrayList<LineItem> getItems() { return items; }
+    // 2. Getter untuk List Items (Ini yang dicari oleh t.getItems())
+    public ArrayList<CartItem> getItems() {
+        return items;
+    }
+
+    // === GETTERS LAINNYA ===
     public String getTransactionID() { return transactionID; }
     public String getCustomerName() { return customerName; }
     public Employee getEmployee() { return employee; }
     public double getTotalPrice() { return totalPrice; }
-    public String getFormattedDate() {
-        return timestamp.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-    }
 
-    public class LineItem {
-        Product product;
-        int quantity;
-        double subtotal;
+    // ==========================================
+    // === INNER CLASS CART ITEM (PENTING!) =====
+    // ==========================================
+    // Class kecil ini bertugas membungkus Produk + Jumlah Beli
+    public class CartItem {
+        private Product product;
+        private int quantity;
+        private double subTotal;
 
-        public LineItem(Product product, int quantity) {
+        public CartItem(Product product, int quantity, double subTotal) {
             this.product = product;
             this.quantity = quantity;
-            this.subtotal = product.getPrice() * quantity;
+            this.subTotal = subTotal;
         }
-        
-        @Override
-        public String toString() {
-            return String.format("%-15s x%d (RM %.2f)", product.getName(), quantity, subtotal);
-        }
+
+        public Product getProduct() { return product; }
+        public int getQuantity() { return quantity; }
+        public double getSubTotal() { return subTotal; }
     }
 }
