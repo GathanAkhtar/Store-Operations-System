@@ -20,13 +20,22 @@ public class InventorySystem {
 
     public void addProduct(Product p) {
         products.put(p.getProductID(), p);
-        saveProductsToFile(); 
+        saveInventory(); // [UPDATE] Memanggil method public baru
     }
 
-    public Product getProduct(String id) { return products.get(id); }
+    // --- [UPDATE] Method ini disesuaikan agar bisa dipanggil EditSystem ---
+    public Product findProduct(String id) { 
+        return products.get(id); 
+    }
+    
+    // Alias untuk kode lama (biar kode lama tidak error)
+    public Product getProduct(String id) { 
+        return findProduct(id); 
+    }
+
     public ArrayList<Product> getAllProducts() { return new ArrayList<>(products.values()); }
 
-    // --- STOCK IN (Perlu Outlet ID) ---
+    // --- STOCK IN ---
     public String stockIn(String productID, int qty, String outletId, String employeeName) {
         Product p = products.get(productID);
         if (p == null) return "Error: Product ID not found.";
@@ -34,12 +43,12 @@ public class InventorySystem {
         int current = p.getQuantity(outletId);
         p.setQuantity(outletId, current + qty);
         
-        saveProductsToFile();
+        saveInventory(); // [UPDATE]
         logTransaction("STOCK_IN (" + outletId + ")", productID, qty, employeeName);
         return "Success: Added " + qty + " to " + outletId + ". Total: " + p.getQuantity(outletId);
     }
 
-    // --- STOCK OUT (Perlu Outlet ID) ---
+    // --- STOCK OUT ---
     public String stockOut(String productID, int qty, String outletId, String employeeName, String reason) {
         Product p = products.get(productID);
         if (p == null) return "Error: Product ID not found.";
@@ -48,7 +57,7 @@ public class InventorySystem {
         if (current < qty) return "Error: Insufficient Stock at " + outletId + " (Current: " + current + ")";
 
         p.setQuantity(outletId, current - qty);
-        saveProductsToFile();
+        saveInventory(); // [UPDATE]
         logTransaction("STOCK_OUT (" + outletId + " - " + reason + ")", productID, qty, employeeName);
         return "Success: Removed " + qty + " from " + outletId + ". Left: " + p.getQuantity(outletId);
     }
@@ -63,7 +72,7 @@ public class InventorySystem {
         return sb.toString(); 
     }
 
-    // --- CSV LOADER (Updated for Multi-Branch) ---
+    // --- CSV LOADER ---
     private void loadProductsFromFile() {
         File file = new File(PRODUCT_FILE);
         if (!file.exists()) {
@@ -97,7 +106,8 @@ public class InventorySystem {
         }
     }
 
-    private void saveProductsToFile() {
+    // --- [UPDATE] Ubah dari Private ke Public dan ganti nama jadi saveInventory ---
+    public void saveInventory() {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(PRODUCT_FILE, false))) {
             for (Product p : products.values()) {
                 writer.write(p.toString());
