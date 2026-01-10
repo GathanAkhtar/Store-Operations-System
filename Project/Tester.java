@@ -19,31 +19,32 @@ public class Tester {
     static SalesSystem salesSystem = new SalesSystem(inventorySystem);
     static StockCountSystem stockCountSystem = new StockCountSystem(inventorySystem);
     static SearchSystem searchSystem = new SearchSystem(inventorySystem);
-    
-    // [BARU] Edit System untuk koreksi data
     static EditSystem editSystem = new EditSystem(inventorySystem);
 
     public static void main(String[] args) {
         // Mengatur tampilan agar terlihat modern (sesuai OS Windows/Mac)
         try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception e) {}
 
+        // Tampilkan LoginGUI dulu sebelum masuk loop
+        SwingUtilities.invokeLater(() -> {
+            new LoginGUI(loginSystem, () -> {
+                // Setelah login sukses, baru jalankan loop yang sudah ada
+                mainMenuLoop();
+            });
+        });
+    }
+
+    // ==========================================
+    // MAIN MENU LOOP
+    // ==========================================
+    private static void mainMenuLoop() {
         while (true) {
-            // ==========================================
-            // 2. LOGIN / START SCREEN
-            // ==========================================
             if (!loginSystem.isLoggedIn()) {
-                String[] options = {"Login", "Exit"};
-                int choice = JOptionPane.showOptionDialog(null, 
-                        "Welcome to GoldenHour Inventory System", "Main Menu", 
-                        JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, 
-                        null, options, options[0]);
-
-                if (choice == 0) {
-                    performLogin();
-                } else {
-                    System.exit(0);
-                }
-
+                // Kalau logout, tampilkan login GUI lagi
+                SwingUtilities.invokeLater(() -> {
+                    new LoginGUI(loginSystem, () -> mainMenuLoop());
+                });
+                break;
             } else {
                 User currentUser = loginSystem.getCurrentUser();
 
@@ -56,7 +57,7 @@ public class Tester {
                         "View Stock",        // 1
                         "Add Product",       // 2
                         "Stock In/Out",      // 3
-                        "Edit Information",  // 4 [FITUR EDIT]
+                        "Edit Information",  // 4
                         "Sales Reports",     // 5
                         "Count Logs",        // 6
                         "Logout"             // 7
@@ -69,7 +70,7 @@ public class Tester {
                         case 1: showProductTable(inventorySystem); break;
                         case 2: performAddProduct(); break;
                         case 3: managerStockOps(inventorySystem, loginSystem, currentUser.getName()); break;
-                        case 4: performEditInfoGUI(); break; // --> Panggil Menu Edit
+                        case 4: performEditInfoGUI(); break;
                         case 5: showScrollMsg("Sales Report", salesSystem.readSalesHistory()); break;
                         case 6: showScrollMsg("Count Logs", stockCountSystem.readCountHistory()); break;
                         case 7: loginSystem.logout(); break;
@@ -85,7 +86,7 @@ public class Tester {
                         "Attendance",        // 0
                         "Daily Stock Count", // 1
                         "Search Info",       // 2
-                        "Edit Information",  // 3 [FITUR EDIT - Staff juga bisa akses jika perlu]
+                        "Edit Information",  // 3
                         "Stock Ops",         // 4
                         "Record Sale",       // 5
                         "Logout"             // 6
@@ -97,7 +98,7 @@ public class Tester {
                         case 0: attendanceGUI(emp); break;
                         case 1: performStaffStockCount(stockCountSystem, inventorySystem, emp); break;
                         case 2: performSearch(searchSystem); break;
-                        case 3: performEditInfoGUI(); break; // --> Panggil Menu Edit
+                        case 3: performEditInfoGUI(); break;
                         case 4: employeeStockOps(inventorySystem, emp); break;
                         case 5: recordSale(salesSystem, inventorySystem, emp); break;
                         case 6: loginSystem.logout(); break;
@@ -109,17 +110,14 @@ public class Tester {
     }
 
     // =========================================================
-    // === [NEW & UPDATED] EDIT INFORMATION GUI ===
-    // Sesuai request: Edit Sales pakai Tanggal & Nama
+    // === EDIT INFORMATION GUI ===
     // =========================================================
     private static void performEditInfoGUI() {
         String[] types = {"Edit Sales Transaction", "Edit Stock Level (Model)", "Edit Stock Count Log"};
         int type = JOptionPane.showOptionDialog(null, "Select correction type:", "Edit Information", 
                 0, 3, null, types, types[0]);
         
-        // --- 1. EDIT SALES (BY DATE & CUSTOMER NAME) ---
         if (type == 0) {
-            // Minta Input Tanggal dan Nama Customer Lama
             JTextField searchDate = new JTextField();
             JTextField searchName = new JTextField();
             Object[] searchForm = {
@@ -133,15 +131,13 @@ public class Tester {
             String targetDate = searchDate.getText();
             String targetName = searchName.getText();
 
-            // Cek sepintas di file (Optional)
             String check = searchSystem.searchSalesRecord(targetName, "ANY");
             if (check.contains("No records")) {
                 JOptionPane.showMessageDialog(null, "No records found matching that name (Check spelling/case).");
                 return;
             }
             
-            // Input Data Baru (Koreksi)
-            JTextField custField = new JTextField(targetName); // Auto-fill nama lama
+            JTextField custField = new JTextField(targetName);
             JTextField methodField = new JTextField();
             JTextField totalField = new JTextField();
             
@@ -156,18 +152,14 @@ public class Tester {
             if (ok == JOptionPane.OK_OPTION) {
                 try {
                     double newTot = Double.parseDouble(totalField.getText());
-                    
-                    // Panggil Method EditSystem (Pastikan EditSystem.java sudah diupdate menerima parameter ini)
                     String res = editSystem.editSalesTransaction(targetDate, targetName, 
                                                                  custField.getText(), methodField.getText(), newTot);
                     JOptionPane.showMessageDialog(null, res);
-                    
                 } catch (Exception e) {
                     JOptionPane.showMessageDialog(null, "Invalid Price Format!");
                 }
             }
             
-        // --- 2. EDIT STOCK LEVEL (Live Stock di Inventory) ---
         } else if (type == 1) {
             String pid = JOptionPane.showInputDialog("Enter Product ID to correct:");
             if (pid == null) return;
@@ -192,7 +184,6 @@ public class Tester {
                 } catch (Exception e) { JOptionPane.showMessageDialog(null, "Invalid Number"); }
             }
 
-        // --- 3. EDIT COUNT LOG (stock_counts.csv) ---
         } else if (type == 2) {
             String date = JOptionPane.showInputDialog("Enter Date of Count (YYYY-MM-DD):");
             String pid = JOptionPane.showInputDialog("Enter Product ID:");
@@ -217,24 +208,12 @@ public class Tester {
     }
 
     // =========================================================
-    // === HELPER METHODS (GUI & LOGIC SYSTEM LAIN) ===
+    // === HELPER METHODS ===
     // =========================================================
 
     private static int showMenu(String title, String[] opts) {
         return JOptionPane.showOptionDialog(null, title, "Menu", 
                 JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, opts, opts[0]);
-    }
-
-    private static void performLogin() {
-        String id = JOptionPane.showInputDialog("User ID:");
-        if (id == null) return;
-        JPasswordField pf = new JPasswordField();
-        if (JOptionPane.showConfirmDialog(null, pf, "Password:", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-            if (loginSystem.validateLogin(id, new String(pf.getPassword()))) 
-                JOptionPane.showMessageDialog(null, "Login Success!");
-            else 
-                JOptionPane.showMessageDialog(null, "Invalid Login!", "Error", JOptionPane.ERROR_MESSAGE);
-        }
     }
 
     private static void performRegister() {
