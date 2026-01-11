@@ -8,7 +8,7 @@ import java.util.HashMap;
 public class AttendanceLog {
     private HashMap<String, AttendanceRecord> records;
     private DateTimeFormatter dateFormatter;
-    
+            
     public AttendanceLog() {
         records = new HashMap<>();
         dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
