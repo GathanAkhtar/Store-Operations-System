@@ -2,358 +2,414 @@ package Project;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List; // Tambahan untuk List
 
 public class Tester {
-
-    // --- GLOBAL SYSTEMS ---
-    // Semua sistem di-load di sini agar data terintegrasi
-    private static LoginSystem loginSystem;
-    private static InventorySystem inventorySystem;
-    private static EditSystem editSystem;
-    private static AttendanceLog attendanceLog;
-    private static PerformanceAnalytics analytics; // Fitur Baru (Ranking)
+    
+    // ==========================================
+    // 1. SYSTEM INITIALIZATION (Semua Sistem Dimuat Disini)
+    // ==========================================
+    
+    // Core Systems
+    static LoginSystem loginSystem = new LoginSystem();
+    static InventorySystem inventorySystem = new InventorySystem();
+    static AttendanceLog attendanceLog = new AttendanceLog();
+    
+    // Feature Systems (Dependency Injection)
+    static SalesSystem salesSystem = new SalesSystem(inventorySystem);
+    static StockCountSystem stockCountSystem = new StockCountSystem(inventorySystem);
+    static SearchSystem searchSystem = new SearchSystem(inventorySystem);
+    static EditSystem editSystem = new EditSystem(inventorySystem);
+    
+    // --- FITUR BARU: ANALYTICS ---
+    static PerformanceAnalytics analytics = new PerformanceAnalytics(inventorySystem);
 
     public static void main(String[] args) {
-        System.out.println("Initializing System...");
+        // Mengatur tampilan agar terlihat modern (sesuai OS Windows/Mac)
+        try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception e) {}
 
-        // 1. Initialize Backend Logic
-        loginSystem = new LoginSystem();
-        inventorySystem = new InventorySystem();
-        editSystem = new EditSystem(inventorySystem);
-        attendanceLog = new AttendanceLog();
-        analytics = new PerformanceAnalytics(inventorySystem);
-
-        // 2. Launch GUI (Login Screen)
+        // Tampilkan LoginGUI dulu sebelum masuk loop
         SwingUtilities.invokeLater(() -> {
-            // Callback: Setelah login sukses, panggil method launchDashboard()
-            new LoginGUI(loginSystem, () -> launchDashboard());
+            new LoginGUI(loginSystem, () -> {
+                // Setelah login sukses, baru jalankan loop yang sudah ada
+                mainMenuLoop();
+            });
         });
     }
 
-    /**
-     * Method ini berjalan otomatis SETELAH Login Berhasil
-     */
-    private static void launchDashboard() {
-        User currentUser = loginSystem.getCurrentUser();
-        
-        if (currentUser == null) {
-            JOptionPane.showMessageDialog(null, "Login Error: User not found.");
-            return;
-        }
+    // ==========================================
+    // MAIN MENU LOOP
+    // ==========================================
+    private static void mainMenuLoop() {
+        while (true) {
+            if (!loginSystem.isLoggedIn()) {
+                // Kalau logout, tampilkan login GUI lagi
+                SwingUtilities.invokeLater(() -> {
+                    new LoginGUI(loginSystem, () -> mainMenuLoop());
+                });
+                break;
+            } else {
+                User currentUser = loginSystem.getCurrentUser();
 
-        // Router: Cek jabatan user untuk menentukan menu mana yang dibuka
-        if (currentUser instanceof Manager) {
-            managerMenu((Manager) currentUser);
-        } else if (currentUser instanceof Employee) {
-            employeeMenu((Employee) currentUser);
-        }
-    }
+                // ==========================================
+                // 3. MANAGER DASHBOARD
+                // ==========================================
+                if (loginSystem.isManager()) {
+                    String[] mgrOptions = {
+                        "Register Employee",        // 0
+                        "View Stock",               // 1
+                        "Add Product",              // 2
+                        "Stock In/Out",             // 3
+                        "Edit Information",         // 4
+                        "Sales Reports",            // 5
+                        "Count Logs",               // 6
+                        "Performance Analytics",    // 7 <--- FITUR BARU
+                        "Logout"                    // 8
+                    };
+                    
+                    int mgrChoice = showMenu("MANAGER DASHBOARD\nUser: " + currentUser.getName(), mgrOptions);
 
-    // ==================================================================================
-    // 1. MANAGER DASHBOARD (Full Access + Add User + Reports)
-    // ==================================================================================
-    private static void managerMenu(Manager mgr) {
-        boolean isRunning = true;
-        
-        // Menu Lengkap Manager
-        String[] options = {
-            "1. View Stock",
-            "2. Search Product",
-            "3. Stock In (Restock)",
-            "4. Stock Out (Sales/Remove)",
-            "5. Edit / Correction Menu",
-            "6. Add New Employee (User)",  // <--- FITUR INI SUDAH KEMBALI
-            "7. Employee Performance Report", // <--- FITUR BARU
-            "8. Logout"
-        };
-
-        while (isRunning) {
-            int choice = JOptionPane.showOptionDialog(null, 
-                "HEAD OFFICE DASHBOARD\nUser: " + mgr.getName(), 
-                "Manager Control Panel", 
-                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, 
-                null, options, options[0]);
-
-            switch (choice) {
-                case 0: // View All
-                    displayInventoryTable(inventorySystem.getAllProducts());
-                    break;
-                case 1: // Search
-                    handleSearch();
-                    break;
-                case 2: // Stock In
-                    handleTransaction(mgr.getName(), "HeadOffice", true);
-                    break;
-                case 3: // Stock Out
-                    handleTransaction(mgr.getName(), "HeadOffice", false);
-                    break;
-                case 4: // Edit Menu (Fix Parameter)
-                    handleEditMenu();
-                    break;
-                case 5: // Add User (Fitur yang sempat hilang)
-                    handleAddUser();
-                    break;
-                case 6: // Performance Report
-                    showPerformanceReport(mgr);
-                    break;
-                case 7: // Logout
-                case -1:
-                    performLogout();
-                    isRunning = false;
-                    break;
-            }
-        }
-    }
-
-    // ==================================================================================
-    // 2. EMPLOYEE DASHBOARD (Access Terbatas)
-    // ==================================================================================
-    private static void employeeMenu(Employee emp) {
-        boolean isRunning = true;
-        String outletId = emp.getOutletId();
-
-        String[] options = {
-            "1. Attendance (Clock In/Out)",
-            "2. View Outlet Stock",
-            "3. Process Sale (Stock Out)",
-            "4. Logout"
-        };
-
-        while (isRunning) {
-            int choice = JOptionPane.showOptionDialog(null, 
-                "STAFF DASHBOARD\nName: " + emp.getName() + "\nOutlet: " + outletId, 
-                "Staff Menu", 
-                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, 
-                null, options, options[0]);
-
-            switch (choice) {
-                case 0: // Attendance
-                    handleAttendance(emp);
-                    break;
-                case 1: // View Stock
-                    displayOutletStock(outletId);
-                    break;
-                case 2: // Sales
-                    // Cek harus Clock In dulu
-                    if (attendanceLog.checkStatus(emp).contains("Not clocked in")) {
-                        JOptionPane.showMessageDialog(null, "Please Clock In first!");
-                    } else {
-                        handleTransaction(emp.getName(), outletId, false);
+                    switch (mgrChoice) {
+                        case 0: performRegister(); break;
+                        case 1: showProductTable(inventorySystem); break;
+                        case 2: performAddProduct(); break;
+                        case 3: managerStockOps(inventorySystem, loginSystem, currentUser.getName()); break;
+                        case 4: performEditInfoGUI(); break;
+                        case 5: showScrollMsg("Sales Report", salesSystem.readSalesHistory()); break;
+                        case 6: showScrollMsg("Count Logs", stockCountSystem.readCountHistory()); break;
+                        case 7: showPerformanceReport((Manager) currentUser); break; // <--- PANGGIL FITUR BARU
+                        case 8: loginSystem.logout(); break;
+                        default: break;
                     }
-                    break;
-                case 3: // Logout
-                case -1:
-                    performLogout();
-                    isRunning = false;
-                    break;
-            }
-        }
-    }
 
-    // ==================================================================================
-    // LOGIC METHODS (Jantung Aplikasi)
-    // ==================================================================================
+                // ==========================================
+                // 4. EMPLOYEE DASHBOARD
+                // ==========================================
+                } else {
+                    Employee emp = (Employee) currentUser;
+                    String[] empOptions = {
+                        "Attendance",        // 0
+                        "Daily Stock Count", // 1
+                        "Search Info",       // 2
+                        "Edit Information",  // 3
+                        "Stock Ops",         // 4
+                        "Record Sale",       // 5
+                        "Logout"             // 6
+                    };
+                    
+                    int empChoice = showMenu("STAFF: " + emp.getName() + " (" + emp.getOutletId() + ")", empOptions);
 
-    // --- A. ADD USER LOGIC (YANG SEMPAT HILANG) ---
-    private static void handleAddUser() {
-        String[] roles = {"Employee", "Manager"};
-        int roleChoice = JOptionPane.showOptionDialog(null, "Select Role:", "Add User",
-                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, roles, roles[0]);
-        
-        if (roleChoice == -1) return;
-        String role = roles[roleChoice];
-
-        String id = JOptionPane.showInputDialog("Enter New User ID (e.g., EMP05):");
-        if (id == null || id.isEmpty()) return;
-        
-        String name = JOptionPane.showInputDialog("Enter Full Name:");
-        if (name == null || name.isEmpty()) return;
-        
-        String pass = JOptionPane.showInputDialog("Enter Password:");
-        if (pass == null || pass.isEmpty()) return;
-
-        String outlet = "HeadOffice";
-        if (role.equals("Employee")) {
-            outlet = JOptionPane.showInputDialog("Enter Outlet (e.g., KLCC):");
-            if (outlet == null || outlet.isEmpty()) return;
-        }
-
-        // Tulis ke CSV
-        try (PrintWriter pw = new PrintWriter(new FileWriter("users.csv", true))) {
-            pw.println(id + "," + pass + "," + name + "," + role + "," + outlet);
-            JOptionPane.showMessageDialog(null, "User " + name + " added successfully!");
-            
-            // Reload Login System supaya user baru terdeteksi
-            loginSystem = new LoginSystem();
-            
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, "Error saving user: " + e.getMessage());
-        }
-    }
-
-    // --- B. EDIT MENU (SUDAH DIPERBAIKI: 5 PARAMETER) ---
-    private static void handleEditMenu() {
-        String[] editOps = {"Edit Stock Quantity", "Edit Sales Transaction", "Back"};
-        
-        int c = JOptionPane.showOptionDialog(null, "Choose Edit Mode", "Edit System", 
-            JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, editOps, editOps[0]);
-
-        if (c == 0) {
-            // Edit Stock Level
-            String pid = JOptionPane.showInputDialog("Product ID:");
-            String out = JOptionPane.showInputDialog("Outlet Name (e.g., KLCC):");
-            String q = JOptionPane.showInputDialog("New Quantity (Total):");
-            
-            if (pid != null && out != null && q != null) {
-                try {
-                    String res = editSystem.editStockLevel(pid, out, Integer.parseInt(q));
-                    JOptionPane.showMessageDialog(null, res);
-                } catch (Exception e) {
-                    JOptionPane.showMessageDialog(null, "Input Error: " + e.getMessage());
+                    switch (empChoice) {
+                        case 0: attendanceGUI(emp); break;
+                        case 1: performStaffStockCount(stockCountSystem, inventorySystem, emp); break;
+                        case 2: performSearch(searchSystem); break;
+                        case 3: performEditInfoGUI(); break;
+                        case 4: employeeStockOps(inventorySystem, emp); break;
+                        case 5: recordSale(salesSystem, inventorySystem, emp); break;
+                        case 6: loginSystem.logout(); break;
+                        default: break;
+                    }
                 }
             }
-        } 
-        else if (c == 1) {
-            // Edit Sales Transaction (Meminta 5 Parameter sesuai Class EditSystem kamu)
-            JOptionPane.showMessageDialog(null, "Step 1: Find Old Data\nStep 2: Enter New Data");
-
-            // Input Data Lama (Target)
-            String targetDate = JOptionPane.showInputDialog("Target Date (YYYY-MM-DD):");
-            String targetName = JOptionPane.showInputDialog("Target Customer Name (Old Name):");
-
-            // Input Data Baru
-            String newName = JOptionPane.showInputDialog("NEW Customer Name:");
-            String newMethod = JOptionPane.showInputDialog("NEW Payment Method (Cash/Card):");
-            String newTotalStr = JOptionPane.showInputDialog("NEW Total Price (e.g. 150.00):");
-
-            try {
-                double newTotal = Double.parseDouble(newTotalStr); // Convert ke double
-                
-                // Panggil method di EditSystem dengan 5 parameter
-                String result = editSystem.editSalesTransaction(targetDate, targetName, newName, newMethod, newTotal);
-                
-                JOptionPane.showMessageDialog(null, result);
-                
-            } catch (NumberFormatException e) {
-                JOptionPane.showMessageDialog(null, "Error: Price must be a number!");
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(null, "Error: " + e.getMessage());
-            }
         }
     }
 
-    // --- C. TRANSACTION (STOCK IN/OUT) ---
-    private static void handleTransaction(String user, String outlet, boolean isStockIn) {
-        String type = isStockIn ? "STOCK IN" : "STOCK OUT";
-        String pid = JOptionPane.showInputDialog("Enter Product ID for " + type + ":");
-        if (pid == null) return;
+    // =========================================================
+    // === EDIT INFORMATION GUI ===
+    // =========================================================
+    private static void performEditInfoGUI() {
+        String[] types = {"Edit Sales Transaction", "Edit Stock Level (Model)", "Edit Stock Count Log"};
+        int type = JOptionPane.showOptionDialog(null, "Select correction type:", "Edit Information",
+                0, 3, null, types, types[0]);
+        
+        if (type == 0) {
+            JTextField searchDate = new JTextField();
+            JTextField searchName = new JTextField();
+            Object[] searchForm = {
+                "Enter Date (YYYY-MM-DD):", searchDate,
+                "Enter Customer Name to Find:", searchName
+            };
+            
+            int searchOk = JOptionPane.showConfirmDialog(null, searchForm, "Find Transaction", JOptionPane.OK_CANCEL_OPTION);
+            if (searchOk != JOptionPane.OK_OPTION) return;
+            
+            String targetDate = searchDate.getText();
+            String targetName = searchName.getText();
 
-        Product p = inventorySystem.findProduct(pid);
-        if (p == null) {
-            JOptionPane.showMessageDialog(null, "Product ID Not Found!");
-            return;
-        }
-
-        String qtyStr = JOptionPane.showInputDialog(null, 
-            "Item: " + p.getName() + "\nCurrent " + outlet + " Stock: " + p.getQuantity(outlet) + 
-            "\n\nEnter Quantity:");
-        if (qtyStr == null) return;
-
-        try {
-            int qty = Integer.parseInt(qtyStr);
-            if (qty <= 0) {
-                JOptionPane.showMessageDialog(null, "Quantity must be positive!");
+            String check = searchSystem.searchSalesRecord(targetName, "ANY");
+            if (check.contains("No records")) {
+                JOptionPane.showMessageDialog(null, "No records found matching that name (Check spelling/case).");
                 return;
             }
-
-            String result;
-            if (isStockIn) {
-                result = inventorySystem.stockIn(pid, qty, outlet, user);
-            } else {
-                String reason = "Sales";
-                if (user.equals("Manager")) {
-                    reason = JOptionPane.showInputDialog("Reason (Sales/Damaged/etc):", "Sales");
-                }
-                result = inventorySystem.stockOut(pid, qty, outlet, user, reason);
-            }
-            JOptionPane.showMessageDialog(null, result);
-
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(null, "Invalid Number!");
-        }
-    }
-
-    // --- D. DISPLAY & SEARCH ---
-    private static void displayInventoryTable(List<Product> products) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("%-10s | %-25s | %-10s | %s\n", "ID", "Name", "Price", "Stock Distribution"));
-        sb.append("----------------------------------------------------------------------------------\n");
-        
-        for (Product p : products) {
-            sb.append(String.format("%-10s | %-25s | RM%7.2f | %s\n", 
-                p.getProductID(), 
-                p.getName().length() > 22 ? p.getName().substring(0,22)+"..." : p.getName(), 
-                p.getPrice(), 
-                p.getStockDisplay()));
-        }
-        showScrollableText(sb.toString(), "Inventory Overview");
-    }
-
-    private static void displayOutletStock(String outletId) {
-        StringBuilder sb = new StringBuilder("Stock at " + outletId + ":\n\n");
-        boolean found = false;
-        for (Product p : inventorySystem.getAllProducts()) {
-            int qty = p.getQuantity(outletId);
-            if (qty > 0) {
-                sb.append("• ").append(p.getName()).append(" (ID: ").append(p.getProductID()).append(")\n");
-                sb.append("  Qty: ").append(qty).append("\n------------------\n");
-                found = true;
-            }
-        }
-        if (!found) sb.append("No stock available.");
-        showScrollableText(sb.toString(), "Outlet Stock");
-    }
-
-    private static void handleSearch() {
-        String query = JOptionPane.showInputDialog("Search Product Name:");
-        if (query == null) return;
-
-        List<Product> results = new ArrayList<>();
-        for (Product p : inventorySystem.getAllProducts()) {
-            if (p.getName().toLowerCase().contains(query.toLowerCase())) {
-                results.add(p);
-            }
-        }
-        if (results.isEmpty()) JOptionPane.showMessageDialog(null, "No products found.");
-        else displayInventoryTable(results);
-    }
-
-    // --- E. ATTENDANCE ---
-    private static void handleAttendance(Employee emp) {
-        String status = attendanceLog.checkStatus(emp);
-        int confirm = JOptionPane.showConfirmDialog(null, 
-            "Current Status: " + status + "\nChange Status?", "Attendance", JOptionPane.YES_NO_OPTION);
             
-        if (confirm == JOptionPane.YES_OPTION) {
-            String msg;
-            if (status.contains("Not clocked in")) msg = attendanceLog.clockIn(emp);
-            else if (status.contains("Clocked In")) msg = attendanceLog.clockOut(emp);
-            else msg = "Shift already ended.";
-            JOptionPane.showMessageDialog(null, msg);
+            JTextField custField = new JTextField(targetName);
+            JTextField methodField = new JTextField();
+            JTextField totalField = new JTextField();
+            
+            Object[] editForm = {
+                "Record Found (Potential Match).",
+                "CORRECT Customer Name:", custField,
+                "CORRECT Payment Method:", methodField,
+                "CORRECT Total Price (RM):", totalField
+            };
+            
+            int ok = JOptionPane.showConfirmDialog(null, editForm, "Edit Transaction Data", JOptionPane.OK_CANCEL_OPTION);
+            if (ok == JOptionPane.OK_OPTION) {
+                try {
+                    double newTot = Double.parseDouble(totalField.getText());
+                    String res = editSystem.editSalesTransaction(targetDate, targetName,
+                                                                 custField.getText(), methodField.getText(), newTot);
+                    JOptionPane.showMessageDialog(null, res);
+                } catch (Exception e) {
+                    JOptionPane.showMessageDialog(null, "Invalid Price Format!");
+                }
+            }
+            
+        } else if (type == 1) {
+            String pid = JOptionPane.showInputDialog("Enter Product ID to correct:");
+            if (pid == null) return;
+            
+            Product p = inventorySystem.findProduct(pid);
+            if (p == null) { JOptionPane.showMessageDialog(null, "Product not found."); return; }
+            
+            String[] outlets = loginSystem.getActiveOutlets();
+            if (outlets.length == 0) { JOptionPane.showMessageDialog(null, "No outlets available."); return; }
+            
+            int o = JOptionPane.showOptionDialog(null, "Select Outlet:", "Location", 0, 3, null, outlets, outlets[0]);
+            if (o == -1) return;
+            
+            String currentQty = String.valueOf(p.getQuantity(outlets[o]));
+            String newQtyStr = JOptionPane.showInputDialog("Current System Stock: " + currentQty + "\nEnter CORRECT Quantity:");
+            
+            if (newQtyStr != null) {
+                try {
+                    int nq = Integer.parseInt(newQtyStr);
+                    String res = editSystem.editStockLevel(pid, outlets[o], nq);
+                    JOptionPane.showMessageDialog(null, res);
+                } catch (Exception e) { JOptionPane.showMessageDialog(null, "Invalid Number"); }
+            }
+
+        } else if (type == 2) {
+            String date = JOptionPane.showInputDialog("Enter Date of Count (YYYY-MM-DD):");
+            String pid = JOptionPane.showInputDialog("Enter Product ID:");
+            
+            String[] sess = {"Morning Count", "Night Count"};
+            int s = JOptionPane.showOptionDialog(null, "Session:", "Select", 0,3,null,sess,sess[0]);
+            
+            String[] outlets = loginSystem.getActiveOutlets();
+            int o = JOptionPane.showOptionDialog(null, "Select Outlet:", "Location", 0, 3, null, outlets, outlets[0]);
+            
+            if (date!=null && pid!=null && s!=-1 && o!=-1) {
+                String newPhys = JOptionPane.showInputDialog("Enter Correct PHYSICAL Quantity:");
+                if (newPhys != null) {
+                    try {
+                        int np = Integer.parseInt(newPhys);
+                        String res = editSystem.editCountLog(date, sess[s], outlets[o], pid, np);
+                        JOptionPane.showMessageDialog(null, res);
+                    } catch(Exception e) { JOptionPane.showMessageDialog(null, "Invalid Number"); }
+                }
+            }
         }
     }
 
-    // --- F. PERFORMANCE REPORT (FITUR BARU) ---
+    // =========================================================
+    // === HELPER METHODS ===
+    // =========================================================
+
+    private static int showMenu(String title, String[] opts) {
+        return JOptionPane.showOptionDialog(null, title, "Menu",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, opts, opts[0]);
+    }
+
+    private static void performRegister() {
+        JTextField id = new JTextField();
+        JTextField name = new JTextField();
+        JPasswordField pass = new JPasswordField();
+        String[] roles = {"Part-time", "Full-time"};
+        JComboBox<String> roleBox = new JComboBox<>(roles);
+        
+        String[] outlets = loginSystem.getActiveOutlets();
+        JComboBox<String> outletBox = new JComboBox<>(outlets.length > 0 ? outlets : new String[]{"New..."});
+
+        Object[] form = {"ID:", id, "Name:", name, "Password:", pass, "Role:", roleBox, "Outlet:", outletBox};
+
+        if (JOptionPane.showConfirmDialog(null, form, "Register Employee", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+            String selectedOutlet = (String) outletBox.getSelectedItem();
+            if (selectedOutlet.equals("New...") || outlets.length == 0) {
+                selectedOutlet = JOptionPane.showInputDialog("Enter New Outlet Name:");
+            }
+            
+            if (selectedOutlet != null && !selectedOutlet.isEmpty()) {
+                loginSystem.addUser(new Employee(id.getText(), new String(pass.getPassword()), name.getText(), (String) roleBox.getSelectedItem(), selectedOutlet));
+                JOptionPane.showMessageDialog(null, "Employee Registered!");
+            }
+        }
+    }
+    
+    private static void performAddProduct() {
+        try {
+            String pid = JOptionPane.showInputDialog("New Product ID:");
+            String nam = JOptionPane.showInputDialog("Product Name:");
+            double prc = Double.parseDouble(JOptionPane.showInputDialog("Price (RM):"));
+            
+            String[] outs = loginSystem.getActiveOutlets();
+            if (outs.length == 0) { JOptionPane.showMessageDialog(null, "No Outlets. Add employee first."); return; }
+            
+            int o = JOptionPane.showOptionDialog(null, "Initialize Stock at:", "Select Outlet", 0,3,null,outs,outs[0]);
+            int q = Integer.parseInt(JOptionPane.showInputDialog("Initial Quantity:"));
+            
+            Product p = new Product(pid, nam, prc);
+            p.setQuantity(outs[o], q);
+            inventorySystem.addProduct(p);
+            
+            JOptionPane.showMessageDialog(null, "Product Added & Saved!");
+        } catch(Exception e) {
+            JOptionPane.showMessageDialog(null, "Invalid Input");
+        }
+    }
+
+    private static void managerStockOps(InventorySystem inv, LoginSystem ls, String mgrName) {
+         String[] outs = ls.getActiveOutlets();
+         if (outs.length == 0) return;
+         
+         String pid = JOptionPane.showInputDialog("Product ID:");
+         int o = JOptionPane.showOptionDialog(null, "Select Outlet", "Location", 0,3,null,outs,outs[0]);
+         
+         String[] ops = {"IN (Restock)", "OUT (Remove)"};
+         int op = JOptionPane.showOptionDialog(null, "Action Type", "Operations", 0,3,null,ops,ops[0]);
+         
+         try {
+             int qty = Integer.parseInt(JOptionPane.showInputDialog("Quantity:"));
+             if (op == 0)
+                 JOptionPane.showMessageDialog(null, inv.stockIn(pid, qty, outs[o], mgrName));
+             else
+                 JOptionPane.showMessageDialog(null, inv.stockOut(pid, qty, outs[o], mgrName, "Manager Ops"));
+         } catch(Exception e) {
+             JOptionPane.showMessageDialog(null, "Invalid Number");
+         }
+    }
+    
+    private static void employeeStockOps(InventorySystem inv, Employee emp) {
+        String pid = JOptionPane.showInputDialog("Product ID:");
+        String[] ops = {"IN (Return)", "OUT (Usage/Damage)"};
+        int op = JOptionPane.showOptionDialog(null, "Action Type", "Operations", 0,3,null,ops,ops[0]);
+        
+        try {
+            int qty = Integer.parseInt(JOptionPane.showInputDialog("Quantity:"));
+            if (op == 0)
+                JOptionPane.showMessageDialog(null, inv.stockIn(pid, qty, emp.getOutletId(), emp.getName()));
+            else
+                JOptionPane.showMessageDialog(null, inv.stockOut(pid, qty, emp.getOutletId(), emp.getName(), "Staff Ops"));
+        } catch(Exception e) {
+             JOptionPane.showMessageDialog(null, "Invalid Number");
+        }
+    }
+
+    private static void attendanceGUI(Employee emp) {
+        String[] a = {"Clock In", "Clock Out", "Check Status"};
+        int c = JOptionPane.showOptionDialog(null, "Attendance Menu", "Time Clock", 0,1,null,a,a[0]);
+        
+        if (c == 0) JOptionPane.showMessageDialog(null, attendanceLog.clockIn(emp));
+        else if (c == 1) JOptionPane.showMessageDialog(null, attendanceLog.clockOut(emp));
+        else if (c == 2) JOptionPane.showMessageDialog(null, attendanceLog.checkStatus(emp));
+    }
+    
+    private static void performStaffStockCount(StockCountSystem scs, InventorySystem inv, Employee emp) {
+        String[] s = {"Morning Count", "Night Count"};
+        int c = JOptionPane.showOptionDialog(null, "Select Session", "Stock Count", 0, 1, null, s, s[0]);
+        if (c != -1) {
+            StringBuilder rep = new StringBuilder("=== COUNT SUMMARY ===\n");
+            for(Product p : inv.getAllProducts()) {
+                String input = JOptionPane.showInputDialog(null,
+                        "Item: " + p.getName() + "\nSystem Stock: " + p.getQuantity(emp.getOutletId()) + "\n\nEnter PHYSICAL Qty:");
+                
+                if (input == null) break;
+                try {
+                    int phys = Integer.parseInt(input);
+                    scs.logCount(s[c], emp.getOutletId(), emp.getName(), p.getProductID(), p.getName(), p.getQuantity(emp.getOutletId()), phys);
+                    rep.append(p.getName()).append(": ").append(phys).append("\n");
+                } catch (NumberFormatException e) {
+                    JOptionPane.showMessageDialog(null, "Invalid number for " + p.getName());
+                }
+            }
+            showScrollMsg("Count Complete", rep.toString());
+        }
+    }
+
+    private static void performSearch(SearchSystem searchSystem) {
+        String[] types = {"Check Stock by Model", "Search Sales History"};
+        int t = JOptionPane.showOptionDialog(null, "Search Type", "Search", 0,3,null,types,types[0]);
+        
+        if (t == 0) {
+            String q = JOptionPane.showInputDialog("Enter Model Name / ID:");
+            if (q != null) showScrollMsg("Stock Results", searchSystem.searchStockByModel(q));
+        } else {
+            String q = JOptionPane.showInputDialog("Enter Keyword (Date / Cust Name / ID):");
+            if (q != null) showScrollMsg("Sales Results", searchSystem.searchSalesRecord(q, "ANY"));
+        }
+    }
+
+    private static void recordSale(SalesSystem ss, InventorySystem inv, Employee emp) {
+        String cust = JOptionPane.showInputDialog("Customer Name (or 'Walk-in'):");
+        if (cust == null) return;
+        
+        SalesTransaction tx = ss.createNewTransaction(cust, emp);
+        
+        while (true) {
+            String pid = JOptionPane.showInputDialog("Current Total: RM" + tx.getTotalPrice() + "\n\nEnter Product ID (Cancel to Finish):");
+            if (pid == null) break;
+            
+            try {
+                String qtyStr = JOptionPane.showInputDialog("Quantity:");
+                if (qtyStr == null) continue;
+                int q = Integer.parseInt(qtyStr);
+                
+                String result = ss.addItemToTransaction(tx, pid, q);
+                JOptionPane.showMessageDialog(null, result);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(null, "Invalid Input");
+            }
+        }
+        
+        if (!tx.getItems().isEmpty()) {
+            String[] m = {"Cash", "Card", "QR Pay"};
+            int p = JOptionPane.showOptionDialog(null, "Select Payment Method", "Checkout", 0,3,null,m,m[0]);
+            if (p == -1) return;
+            
+            double paid = tx.getTotalPrice();
+            if (p == 0) {
+                 String in = JOptionPane.showInputDialog("Total: RM" + tx.getTotalPrice() + "\nCash Received:");
+                 if (in != null) paid = Double.parseDouble(in);
+            }
+            
+            showScrollMsg("Receipt", ss.finalizeTransaction(tx, paid, m[p]));
+        } else {
+            JOptionPane.showMessageDialog(null, "Transaction Cancelled.");
+        }
+    }
+
+    private static void showProductTable(InventorySystem inv) {
+        ArrayList<Product> list = inv.getAllProducts();
+        String[][] data = new String[list.size()][4];
+        String[] cols = {"ID", "Name", "Price", "Stock Info"};
+        
+        for (int i = 0; i < list.size(); i++){
+             Product p = list.get(i);
+             data[i][0] = p.getProductID();
+             data[i][1] = p.getName();
+             data[i][2] = String.format("%.2f", p.getPrice());
+             data[i][3] = p.getStockDisplay();
+        }
+        JOptionPane.showMessageDialog(null, new JScrollPane(new JTable(data, cols)));
+    }
+    
+    // --- METHOD HELPER BARU: TAMPILKAN PERFORMANCE ---
     private static void showPerformanceReport(Manager mgr) {
         try {
             List<EmployeeStats> report = analytics.getEmployeePerformanceReport(mgr);
             
-            StringBuilder sb = new StringBuilder("=== EMPLOYEE SALES LEADERBOARD ===\n");
-            sb.append("(Based on transactions.csv)\n\n");
+            StringBuilder sb = new StringBuilder("=== EMPLOYEE SALES LEADERBOARD ===\n\n");
             sb.append(String.format("%-5s %-15s %-10s %s\n", "Rank", "Name", "Trans.", "Total Sales"));
             sb.append("----------------------------------------------------\n");
             
@@ -362,26 +418,17 @@ public class Tester {
                 sb.append(String.format("#%-4d %-15s %-10d RM %,.2f\n", 
                     rank++, s.getEmployeeName(), s.getTransactionCount(), s.getTotalSales()));
             }
-            showScrollableText(sb.toString(), "Performance Report");
-
+            showScrollMsg("Performance Analytics", sb.toString());
         } catch (SecurityException e) {
             JOptionPane.showMessageDialog(null, e.getMessage(), "Access Denied", JOptionPane.ERROR_MESSAGE);
         }
     }
-
-    // --- UTILITIES ---
-    private static void performLogout() {
-        loginSystem.logout();
-        JOptionPane.showMessageDialog(null, "Logged Out Successfully.");
-        SwingUtilities.invokeLater(() -> new LoginGUI(loginSystem, () -> launchDashboard()));
-    }
-
-    private static void showScrollableText(String text, String title) {
-        JTextArea area = new JTextArea(text);
-        area.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        area.setEditable(false);
-        JScrollPane scroll = new JScrollPane(area);
-        scroll.setPreferredSize(new Dimension(600, 400));
-        JOptionPane.showMessageDialog(null, scroll, title, JOptionPane.INFORMATION_MESSAGE);
+    
+    private static void showScrollMsg(String title, String msg) {
+        JTextArea ta = new JTextArea(msg);
+        ta.setRows(15);
+        ta.setColumns(40);
+        ta.setEditable(false);
+        JOptionPane.showMessageDialog(null, new JScrollPane(ta), title, JOptionPane.INFORMATION_MESSAGE);
     }
 }

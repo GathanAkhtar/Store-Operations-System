@@ -7,15 +7,13 @@ import java.util.Map;
 
 public class SearchSystem {
     private InventorySystem inventorySystem;
-    
-    // [PERBAIKAN] Ganti ke "sales_history.csv" agar sesuai dengan SalesSystem
     private final String SALES_FILE = "sales_history.csv"; 
 
     public SearchSystem(InventorySystem inventorySystem) {
         this.inventorySystem = inventorySystem;
     }
 
-    // === 1. STOCK SEARCH (Model Name -> All Outlets) ===
+    // === 1. STOCK SEARCH (Tidak diubah) ===
     public String searchStockByModel(String query) {
         StringBuilder result = new StringBuilder();
         ArrayList<Product> products = inventorySystem.getAllProducts();
@@ -24,14 +22,12 @@ public class SearchSystem {
         result.append("=== SEARCH RESULT: '").append(query).append("' ===\n\n");
 
         for (Product p : products) {
-            // Case insensitive search
             if (p.getName().toLowerCase().contains(query.toLowerCase()) || 
                 p.getProductID().toLowerCase().contains(query.toLowerCase())) {
                 
                 found = true;
                 result.append("Product: ").append(p.getName()).append(" (ID: ").append(p.getProductID()).append(")\n");
                 result.append("Price: RM ").append(p.getPrice()).append("\n");
-                result.append("Stock Availability:\n");
                 
                 Map<String, Integer> stockMap = p.getStockDistribution();
                 if (stockMap.isEmpty()) {
@@ -44,61 +40,78 @@ public class SearchSystem {
                 result.append("------------------------------------------------\n");
             }
         }
-
         if (!found) return "No products found matching: " + query;
         return result.toString();
     }
 
-    // === 2. SALES SEARCH (Date / Customer / Model) ===
+    // === 2. SALES SEARCH (VERSI UNIVERSAL & DEBUG) ===
     public String searchSalesRecord(String query, String searchType) {
         StringBuilder result = new StringBuilder();
-        result.append("=== SALES RECORDS (Filter: ").append(searchType).append(" - '").append(query).append("') ===\n\n");
-        boolean found = false;
+        result.append("=== SALES RECORDS (Searching for: '").append(query).append("') ===\n\n");
         
+        boolean found = false;
+        // Bersihkan query dari user (hapus spasi depan/belakang)
+        String cleanQuery = query.trim().toLowerCase(); 
+
         try (BufferedReader br = new BufferedReader(new FileReader(SALES_FILE))) {
             String line;
             while ((line = br.readLine()) != null) {
-                // Lewati header atau baris kosong
-                if(!line.contains(",") || line.startsWith("Date")) continue;
+                // Skip baris kosong
+                if (line.trim().isEmpty()) continue;
 
-                String[] data = line.split(","); 
-                // Format CSV: Date(0), Time(1), TransID(2), Cust(3), Staff(4), Outlet(5), Items(6), Total(7), Method(8)
+                String[] data = line.split(",");
                 
+                // Pastikan data lengkap (Minimal sampai harga/index 7)
                 if (data.length < 8) continue;
 
+                // --- AMBIL DATA DARI CSV (SESUAI GAMBAR KAMU) ---
+                String date     = data[0].trim(); // Index 0
+                String time     = data[1].trim(); // Index 1
+                String customer = data[3].trim(); // Index 3 (Customer Name)
+                String employee = data[4].trim(); // Index 4 (Employee)
+                String items    = data[6].trim(); // Index 6 (Item List)
+                String total    = data[7].trim(); // Index 7 (Price)
+
                 boolean match = false;
-                String date = data[0];      
-                String customer = data[3];  
-                String items = data[6];     
+
+                // --- LOGIKA "UNIVERSAL MATCH" ---
+                // Tidak peduli user pilih menu Date atau Customer, 
+                // kita cek SEMUANYA agar pasti ketemu.
                 
-                // Logic Pencarian
-                if (searchType.equals("DATE")) {
-                    if (date.contains(query)) match = true;
-                } 
-                else if (searchType.equals("CUSTOMER")) {
-                    if (customer.toLowerCase().contains(query.toLowerCase())) match = true;
-                } 
-                else if (searchType.equals("MODEL")) {
-                    // Cari di dalam kolom items
-                    if (items.toLowerCase().contains(query.toLowerCase())) match = true;
+                // 1. Cek Tanggal (Harus persis sama)
+                if (date.equals(cleanQuery) || date.equalsIgnoreCase(query)) {
+                    match = true;
+                }
+                // 2. Cek Nama Customer (Mengandung kata kunci)
+                else if (customer.toLowerCase().contains(cleanQuery)) {
+                    match = true;
+                }
+                // 3. Cek Nama Item/Model (Mengandung kata kunci)
+                else if (items.toLowerCase().contains(cleanQuery)) {
+                    match = true;
                 }
 
+                // Jika ketemu, masukkan ke hasil
                 if (match) {
                     found = true;
-                    result.append("Date: ").append(data[0]).append(" | Time: ").append(data[1]).append("\n");
-                    result.append("Trans ID: ").append(data[2]).append("\n");
-                    result.append("Customer: ").append(data[3]).append("\n");
-                    result.append("Outlet: ").append(data[5]).append("\n");
-                    result.append("Items: ").append(data[6]).append("\n");
-                    result.append("Total: RM ").append(data[7]).append("\n");
+                    result.append("Date: ").append(date).append(" | Time: ").append(time).append("\n");
+                    result.append("Customer: ").append(customer).append("\n");
+                    result.append("Employee: ").append(employee).append("\n");
+                    result.append("Items   : ").append(items).append("\n");
+                    result.append("Total   : RM ").append(total).append("\n");
                     result.append("------------------------------------------------\n");
                 }
             }
         } catch (Exception e) {
-            return "Error: Could not read " + SALES_FILE + " (File not found or empty).";
+            return "Error reading file: " + e.getMessage();
         }
 
-        if (!found) return "No transactions found for criteria: " + query;
+        if (!found) {
+            // Pesan Error yang informatif
+            return "Transaction NOT FOUND.\n" +
+                   "Your Input: '" + query + "'\n" +
+                   "Tip: Try checking the exact spelling or date format (YYYY-MM-DD).";
+        }
         return result.toString();
     }
 }
