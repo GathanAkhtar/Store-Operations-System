@@ -3,7 +3,7 @@ package Project;
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
-import java.util.List; // Tambahan untuk List
+import java.util.List;
 
 public class Tester {
     
@@ -21,18 +21,18 @@ public class Tester {
     static StockCountSystem stockCountSystem = new StockCountSystem(inventorySystem);
     static SearchSystem searchSystem = new SearchSystem(inventorySystem);
     static EditSystem editSystem = new EditSystem(inventorySystem);
-    
-    // --- FITUR BARU: ANALYTICS ---
     static PerformanceAnalytics analytics = new PerformanceAnalytics(inventorySystem);
+    
+    // --- FITUR BARU: FILTER SYSTEM ---
+    static SalesFilterSystem filterSystem = new SalesFilterSystem();
 
     public static void main(String[] args) {
-        // Mengatur tampilan agar terlihat modern (sesuai OS Windows/Mac)
+        // Mengatur tampilan agar terlihat modern
         try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception e) {}
 
         // Tampilkan LoginGUI dulu sebelum masuk loop
         SwingUtilities.invokeLater(() -> {
             new LoginGUI(loginSystem, () -> {
-                // Setelah login sukses, baru jalankan loop yang sudah ada
                 mainMenuLoop();
             });
         });
@@ -44,7 +44,6 @@ public class Tester {
     private static void mainMenuLoop() {
         while (true) {
             if (!loginSystem.isLoggedIn()) {
-                // Kalau logout, tampilkan login GUI lagi
                 SwingUtilities.invokeLater(() -> {
                     new LoginGUI(loginSystem, () -> mainMenuLoop());
                 });
@@ -64,8 +63,9 @@ public class Tester {
                         "Edit Information",         // 4
                         "Sales Reports",            // 5
                         "Count Logs",               // 6
-                        "Performance Analytics",    // 7 <--- FITUR BARU
-                        "Logout"                    // 8
+                        "Performance Analytics",    // 7
+                        "Filter & Sort History",    // 8 <--- FITUR BARU DITAMBAHKAN DISINI
+                        "Logout"                    // 9
                     };
                     
                     int mgrChoice = showMenu("MANAGER DASHBOARD\nUser: " + currentUser.getName(), mgrOptions);
@@ -78,8 +78,9 @@ public class Tester {
                         case 4: performEditInfoGUI(); break;
                         case 5: showScrollMsg("Sales Report", salesSystem.readSalesHistory()); break;
                         case 6: showScrollMsg("Count Logs", stockCountSystem.readCountHistory()); break;
-                        case 7: showPerformanceReport((Manager) currentUser); break; // <--- PANGGIL FITUR BARU
-                        case 8: loginSystem.logout(); break;
+                        case 7: showPerformanceReport((Manager) currentUser); break;
+                        case 8: performSalesFilter(); break; // <--- PANGGIL LOGIKA FILTER
+                        case 9: loginSystem.logout(); break;
                         default: break;
                     }
 
@@ -116,6 +117,39 @@ public class Tester {
     }
 
     // =========================================================
+    // === FITUR BARU: LOGIKA FILTER ===
+    // =========================================================
+    private static void performSalesFilter() {
+        JTextField startField = new JTextField("2026-01-01");
+        JTextField endField = new JTextField("2026-12-31");
+        
+        String[] sortOptions = {
+            "Date Ascending (Oldest First)",
+            "Date Descending (Newest First)",
+            "Amount (Lowest -> Highest)",
+            "Amount (Highest -> Lowest)",
+            "Customer Name (A-Z)"
+        };
+        JComboBox<String> sortBox = new JComboBox<>(sortOptions);
+
+        Object[] message = {
+            "Start Date (YYYY-MM-DD):", startField,
+            "End Date (YYYY-MM-DD):", endField,
+            "Sort By:", sortBox
+        };
+
+        int option = JOptionPane.showConfirmDialog(null, message, "Filter & Sort Sales", JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            String start = startField.getText();
+            String end = endField.getText();
+            int sortOpt = sortBox.getSelectedIndex() + 1; 
+
+            String result = filterSystem.filterAndSortSales(start, end, sortOpt);
+            showScrollMsg("Filtered Sales Analysis", result);
+        }
+    }
+
+    // =========================================================
     // === EDIT INFORMATION GUI ===
     // =========================================================
     private static void performEditInfoGUI() {
@@ -126,10 +160,7 @@ public class Tester {
         if (type == 0) {
             JTextField searchDate = new JTextField();
             JTextField searchName = new JTextField();
-            Object[] searchForm = {
-                "Enter Date (YYYY-MM-DD):", searchDate,
-                "Enter Customer Name to Find:", searchName
-            };
+            Object[] searchForm = { "Enter Date (YYYY-MM-DD):", searchDate, "Enter Customer Name to Find:", searchName };
             
             int searchOk = JOptionPane.showConfirmDialog(null, searchForm, "Find Transaction", JOptionPane.OK_CANCEL_OPTION);
             if (searchOk != JOptionPane.OK_OPTION) return;
@@ -161,9 +192,7 @@ public class Tester {
                     String res = editSystem.editSalesTransaction(targetDate, targetName,
                                                                  custField.getText(), methodField.getText(), newTot);
                     JOptionPane.showMessageDialog(null, res);
-                } catch (Exception e) {
-                    JOptionPane.showMessageDialog(null, "Invalid Price Format!");
-                }
+                } catch (Exception e) { JOptionPane.showMessageDialog(null, "Invalid Price Format!"); }
             }
             
         } else if (type == 1) {
@@ -239,7 +268,6 @@ public class Tester {
             if (selectedOutlet.equals("New...") || outlets.length == 0) {
                 selectedOutlet = JOptionPane.showInputDialog("Enter New Outlet Name:");
             }
-            
             if (selectedOutlet != null && !selectedOutlet.isEmpty()) {
                 loginSystem.addUser(new Employee(id.getText(), new String(pass.getPassword()), name.getText(), (String) roleBox.getSelectedItem(), selectedOutlet));
                 JOptionPane.showMessageDialog(null, "Employee Registered!");
@@ -429,6 +457,7 @@ public class Tester {
         ta.setRows(15);
         ta.setColumns(40);
         ta.setEditable(false);
+        ta.setFont(new Font("Monospaced", Font.PLAIN, 12)); // Biar tabel rapi
         JOptionPane.showMessageDialog(null, new JScrollPane(ta), title, JOptionPane.INFORMATION_MESSAGE);
     }
 }
