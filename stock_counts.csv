@@ -6,3 +6,11 @@
 2026-01-11 02:28:56,Morning Count,UM Central,BOB,TEST,TEST,0,1,1
 2026-01-11 02:28:57,Morning Count,UM Central,BOB,CL2,Uniqlo,1,1,0
 2026-01-11,Morning,Pasar Seni,Uniqlo,CL2,0,2
+2026-01-12 01:33:48,Morning Count,UM Central,BOB,TEST,TEST,0,1,1
+2026-01-12 01:33:52,Morning Count,UM Central,BOB,HP1,Iphone,0,1,1
+2026-01-12 09:40:48,Morning Count,UM Central,BOB,TEST,TEST,0,1,1
+2026-01-12 09:40:49,Morning Count,UM Central,BOB,J1,JBL,0,1,1
+2026-01-12 09:40:50,Morning Count,UM Central,BOB,HP1,Iphone,1,1,0
+2026-01-12 09:40:54,Night Count,UM Central,BOB,TEST,TEST,0,1,1
+2026-01-12 09:40:54,Night Count,UM Central,BOB,J1,JBL,0,1,1
+2026-01-12 09:40:54,Night Count,UM Central,BOB,HP1,Iphone,1,1,0
