@@ -171,11 +171,44 @@ public class ManagerDashboardGUI extends JFrame {
 }
 
     private void performRegister() {
-        JTextField id = new JTextField(); JTextField name = new JTextField(); JPasswordField pass = new JPasswordField();
-        Object[] form = {"ID:", id, "Name:", name, "Password:", pass};
-        if (JOptionPane.showConfirmDialog(this, form, "Register", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-            loginSystem.addUser(new Employee(id.getText(), new String(pass.getPassword()), name.getText(), "Full-time", "KLCC"));
-            JOptionPane.showMessageDialog(this, "Registered!");
+        JTextField id = new JTextField();
+        JTextField name = new JTextField();
+        JPasswordField pass = new JPasswordField();
+        
+        // Menambahkan field input untuk Role dan Outlet
+        JTextField role = new JTextField(); // Manager mengetik "Full-time" atau "Part-time"
+        JTextField outlet = new JTextField(); // Manager mengetik lokasi (KLCC, UM Central, dll)
+
+        // Menyusun form input dalam dialog
+        Object[] form = {
+            "Employee ID:", id,
+            "Full Name:", name,
+            "Password:", pass,
+            "Role (Part-time / Full-time):", role,
+            "Outlet Location (e.g., KLCC, Pasar Seni):", outlet
+        };
+
+        int result = JOptionPane.showConfirmDialog(this, form, "Register New Employee", JOptionPane.OK_CANCEL_OPTION);
+        
+        if (result == JOptionPane.OK_OPTION) {
+            // Validasi sederhana untuk memastikan semua data terisi
+            if (id.getText().isEmpty() || name.getText().isEmpty() || role.getText().isEmpty() || outlet.getText().isEmpty()) {
+                JOptionPane.showMessageDialog(this, "All fields must be filled!", "Registration Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Membuat objek Employee baru dengan data dari input manager
+            // Data ini akan disimpan ke users.csv melalui loginSystem
+            Employee newEmp = new Employee(
+                id.getText().trim(),
+                new String(pass.getPassword()),
+                name.getText().trim(),
+                role.getText().trim(),   // Menggunakan input Role yang baru ditambahkan
+                outlet.getText().trim() // Menggunakan input Outlet yang baru ditambahkan
+            );
+
+            loginSystem.addUser(newEmp);
+            JOptionPane.showMessageDialog(this, "Employee " + name.getText() + " has been successfully registered!");
         }
     }
 
@@ -202,15 +235,37 @@ public class ManagerDashboardGUI extends JFrame {
     }
 
     private void managerStockOps() {
-        String pid = JOptionPane.showInputDialog(this, "Product ID:");
-        String qty = JOptionPane.showInputDialog(this, "Quantity:");
-        if (pid != null && qty != null) {
-            try {
-                String msg = inventorySystem.stockIn(pid, Integer.parseInt(qty), "KLCC", loginSystem.getCurrentUser().getName());
-                JOptionPane.showMessageDialog(this, msg);
-            } catch (Exception e) { JOptionPane.showMessageDialog(this, "Invalid quantity."); }
+    String pid = JOptionPane.showInputDialog(this, "Product ID:");
+    if (pid == null) return;
+
+    String qtyStr = JOptionPane.showInputDialog(this, "Quantity:");
+    if (qtyStr == null) return;
+
+    // [UPDATE] Menggunakan Option Dialog agar outlet berbentuk button
+    String[] outlets = {"KLCC", "UM Central", "Pasar Seni"};
+    int outletChoice = JOptionPane.showOptionDialog(this, 
+            "Select Destination Outlet:", 
+            "Stock In - Select Location", 
+            JOptionPane.DEFAULT_OPTION, 
+            JOptionPane.QUESTION_MESSAGE, 
+            null, 
+            outlets, 
+            outlets[0]);
+
+    // Jika user memilih salah satu outlet (bukan menekan X/Cancel)
+    if (outletChoice != -1 && !qtyStr.isEmpty()) {
+        try {
+            int qty = Integer.parseInt(qtyStr);
+            String selectedOutlet = outlets[outletChoice];
+            
+            // Tetap menggunakan sistem stockIn yang sudah ada
+            String msg = inventorySystem.stockIn(pid, qty, selectedOutlet, loginSystem.getCurrentUser().getName());
+            JOptionPane.showMessageDialog(this, msg);
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid quantity format!");
         }
     }
+}
 
     private void showPerformanceReport() {
         try {

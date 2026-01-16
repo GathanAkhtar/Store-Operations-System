@@ -3,7 +3,6 @@ package Project;
 import javax.swing.*;
 
 public class Tester {
-    // Inisialisasi sistem tetap static agar data tersinkronisasi
     static LoginSystem loginSystem = new LoginSystem();
     static InventorySystem inventorySystem = new InventorySystem();
     static AttendanceLog attendanceLog = new AttendanceLog();
@@ -33,7 +32,6 @@ public class Tester {
         User user = loginSystem.getCurrentUser();
 
         if (loginSystem.isManager()) {
-            // PERBAIKAN: Tambahkan searchSystem sebagai argumen ke-8
             new ManagerDashboardGUI(loginSystem, inventorySystem, salesSystem, 
                                    editSystem, analytics, filterSystem, stockCountSystem, 
                                    searchSystem); 

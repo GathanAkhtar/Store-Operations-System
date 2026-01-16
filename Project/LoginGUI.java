@@ -5,7 +5,7 @@ import java.awt.*;
 
 public class LoginGUI extends JFrame {
     
-    private static final Color GOLD = new Color(244, 196, 48);
+    private static final Color GOLD = new Color(255, 215, 87);
     private static final Color LIGHT_GRAY = new Color(245, 245, 245);
     private static final Color DARK_GRAY = new Color(168, 168, 168);
     

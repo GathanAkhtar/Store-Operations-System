@@ -236,15 +236,43 @@ private void performEditInfoGUI() {
     }
 
     private void employeeStockOps() {
-        String pid = JOptionPane.showInputDialog(this, "Enter Product ID:");
-        if (pid == null) return;
+    String pid = JOptionPane.showInputDialog(this, "Enter Product ID:");
+    if (pid == null) return;
+
+    String[] ops = {"IN (Return)", "OUT (Usage/Damage)"};
+    int opType = JOptionPane.showOptionDialog(this, "Action Type", "Stock Operations", 
+                                             0, JOptionPane.PLAIN_MESSAGE, null, ops, ops[0]);
+    if (opType == -1) return;
+
+    // [UPDATE] Staff memilih outlet menggunakan button
+    String[] outlets = {"KLCC", "UM Central", "Pasar Seni"};
+    int outletChoice = JOptionPane.showOptionDialog(this, 
+            "Select Outlet Location:", 
+            "Location Selection", 
+            JOptionPane.DEFAULT_OPTION, 
+            JOptionPane.QUESTION_MESSAGE, 
+            null, 
+            outlets, 
+            currentStaff.getOutletId()); // Default ke outlet asal staff
+
+    if (outletChoice == -1) return;
+    String selectedOutlet = outlets[outletChoice];
+
+    try {
         String qtyStr = JOptionPane.showInputDialog(this, "Enter Quantity:");
         if (qtyStr == null) return;
-        try {
-            int qty = Integer.parseInt(qtyStr);
-            JOptionPane.showMessageDialog(this, inventorySystem.stockIn(pid, qty, currentStaff.getOutletId(), currentStaff.getName()));
-        } catch(Exception e) { JOptionPane.showMessageDialog(this, "Invalid numeric input."); }
+        int qty = Integer.parseInt(qtyStr);
+        
+        // Tetap menggunakan logika stockIn/stockOut yang sudah ada
+        String message = (opType == 0) ? 
+            inventorySystem.stockIn(pid, qty, selectedOutlet, currentStaff.getName()) :
+            inventorySystem.stockOut(pid, qty, selectedOutlet, currentStaff.getName(), "Staff Ops Manual");
+        
+        JOptionPane.showMessageDialog(this, message);
+    } catch(NumberFormatException e) { 
+        JOptionPane.showMessageDialog(this, "Invalid numeric input."); 
     }
+}
 
     private void recordSale() {
         String customer = JOptionPane.showInputDialog(this, "Customer Name (or 'Walk-in'):");
