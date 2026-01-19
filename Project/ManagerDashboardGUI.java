@@ -52,9 +52,24 @@ public class ManagerDashboardGUI extends JFrame {
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 40, 40));
         header.setBackground(THEME_GOLD);
         header.setPreferredSize(new Dimension(1000, 150));
-        JLabel title = new JLabel("<html><font size='5' color='white'>Admin Menu</font><br>" +
-                                 "<font size='10' color='white'><b>Manager Dashboard</b></font></html>");
-        header.add(title);
+
+        JPanel textGroup = new JPanel();
+        textGroup.setOpaque(false);
+        textGroup.setLayout(new BoxLayout(textGroup, BoxLayout.Y_AXIS));
+
+        JLabel staffLbl = new JLabel("Admin Menu");
+        staffLbl.setFont(new Font("Arial", Font.PLAIN, 18));
+        staffLbl.setForeground(Color.WHITE);
+
+        JLabel dashLbl = new JLabel("Manager Dashboard");
+        dashLbl.setFont(new Font("Arial", Font.BOLD, 32));
+        dashLbl.setForeground(Color.WHITE);
+
+        textGroup.add(staffLbl);
+        textGroup.add(Box.createRigidArea(new Dimension(0, 5)));
+        textGroup.add(dashLbl);
+
+        header.add(textGroup);
         return header;
     }
 
